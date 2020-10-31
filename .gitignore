@@ -1,0 +1,13 @@
+# Directories
+__pycache__/
+weights/
+data/
+.vscode/
+experiments/
+
+# Files
+.python-version
+*.html
+*.pth
+vaed.py
+train.py
