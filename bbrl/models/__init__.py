@@ -18,7 +18,7 @@ class BehaviourNetwork(nn.Module):
         self.feature_net = FeatureNet()
         self.reactive_net = ReactiveNet()
         self.behaviour = behaviour
-        self.weights_path = weights_path
+        self.weights_path = weights_path if behaviour in LOW_LEVEL_BEHAVIOURS else os.path.dirname(os.path.dirname(weights_path))
 
         # Load existing weights
         self.load_weights()
@@ -69,7 +69,7 @@ class ChoreographNetwork(nn.Module):
         self.internal_states = internal_states
         if self.internal_states:
             self.vae = VAE()
-            self.vae.load_state_dict(torch.load(os.path.join(os.path.join(os.path.dirname(self.weights_path), "vae"), "vae_again.pth")))
+            self.vae.load_state_dict(torch.load(os.path.join(os.path.join(os.path.dirname(os.path.dirname(self.weights_path)), "vae"), "vae.pth")))
             self.vae.eval()
         # Load existing weights
         self.load_weights()
@@ -85,17 +85,17 @@ class ChoreographNetwork(nn.Module):
             vae_input = torch.cat((first_layer_features, second_layer_features))
             # ac_input_features, _ = self.vae.encoder(vae_input) # only internal states
             z_means, z_logvar = self.vae.encoder(vae_input)
-            # std = torch.exp(0.5*z_logvar)
-            # eps = torch.randn_like(std)
-            # ac_input_features = z_means+eps*std
+            std = torch.exp(0.5*z_logvar)
+            eps = torch.randn_like(std)
+            ac_input_features = z_means+eps*std
             # ac_input_features = torch.cat((second_layer_features, z_means)) # concatenating internal states
-            ac_input_features = torch.cat((z_means, z_logvar))
+            # ac_input_features = torch.cat((z_means, z_logvar))
         output = self.ac(ac_input_features, hx, cx)
 
         return output
 
     def load_weights(self):
-        self.feature_net.load_state_dict(torch.load(os.path.join(self.weights_path, "feature_net.pth")))
+        self.feature_net.load_state_dict(torch.load(os.path.join(os.path.dirname(os.path.dirname(self.weights_path)), "feature_net.pth")))
         if (os.path.exists(os.path.join(self.weights_path, "ac.pth"))):
             self.ac.load_state_dict(torch.load(os.path.join(self.weights_path, "ac.pth")))
 
@@ -106,7 +106,7 @@ class ChoreographNetwork(nn.Module):
 
     def save_model_weights(self):
         # Save weights of feature and reactive networks independently
-        torch.save(self.ac.state_dict(), os.path.join(self.weights_path, "ac_1.pth"))
+        torch.save(self.ac.state_dict(), os.path.join(self.weights_path, "ac_10.pth"))
 
 class VAE(nn.Module):
 

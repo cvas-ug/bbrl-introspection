@@ -25,7 +25,7 @@ def get_behaviour_from_model_output(behaviour_means, behaviour_log_stds):
     num = len(behaviour_means)
     act = torch.zeros(num).type(torch.cuda.FloatTensor)
     for i in range(num):
-        normal = Normal(behaviour_means[i], behaviour_log_stds[i].exp())
+        normal = Normal(behaviour_means[i], behaviour_log_stds[i])
         X = normal.rsample()
         act[i] = torch.tanh(X)
     return act
@@ -36,7 +36,7 @@ def train(rank, args, shared_model, counter, lock, optimizer=None):
     env = gym.make("FetchPickAndPlace-v1")
     flattened_env = gym.wrappers.FlattenDictWrapper(env, dict_keys=['observation', 'desired_goal'])
 
-    model = BehaviourNetwork("weights", args.command)
+    model = BehaviourNetwork(args.weights_path, args.command)
 
     if args.use_cuda:
         model.cuda()
@@ -132,7 +132,7 @@ def test(rank, args, shared_model, counter):
     env = gym.make("FetchPickAndPlace-v1")
     flattened_env = gym.wrappers.FlattenDictWrapper(env, dict_keys=['observation', 'desired_goal'])
 
-    model = BehaviourNetwork("weights", args.command)
+    model = BehaviourNetwork(args.weights_path, args.command)
     if args.use_cuda:
         model.cuda()
     model.eval()
@@ -155,7 +155,7 @@ def test(rank, args, shared_model, counter):
             object_oriented_goal = obs['observation'][6:9]
             object_oriented_goal[2] += 0.03 # first make the gripper go slightly above the object
             while np.linalg.norm(object_oriented_goal) >= 0.015 and timestep <= env._max_episode_steps:
-                # env.render()
+                env.render()
                 action = [0, 0, 0, 0, 0]
 
                 for i in range(len(object_oriented_goal)):
@@ -169,7 +169,7 @@ def test(rank, args, shared_model, counter):
                 object_oriented_goal = obs['observation'][6:9]
             object_oriented_goal = obs['observation'][6:9]
             while np.linalg.norm(object_oriented_goal) >= 0.005 and timestep <= env._max_episode_steps :
-                # env.render()
+                env.render()
                 action = [0, 0, 0, 0, 0]
                 for i in range(len(object_oriented_goal)):
                     action[i] = object_oriented_goal[i]*6
@@ -183,9 +183,10 @@ def test(rank, args, shared_model, counter):
             
             goal = obs['desired_goal']
             objectPos = obs['observation'][3:6]
-            state_inp = torch.from_numpy(flattened_env.observation(obs)).type(FloatTensor)            
+            state_inp = torch.from_numpy(flattened_env.observation(obs)).type(FloatTensor) 
+          
             while np.linalg.norm(goal - objectPos) >= 0.01 and timestep <= env._max_episode_steps :
-                # env.render()
+                env.render()
                 action = [0, 0, 0, 0, 0]
                 _, output = model(state_inp)
                 act_tensor = get_behaviour_from_model_output(output["retract_means"], output["retract_log_stds"])
@@ -198,9 +199,9 @@ def test(rank, args, shared_model, counter):
                 state_inp = torch.from_numpy(flattened_env.observation(obs)).type(FloatTensor)
                 objectPos = obs['observation'][3:6]
                 if timestep >= env._max_episode_steps: break
-            
+
             while True: #limit the number of timesteps in the episode to a fixed duration
-                # env.render()
+                env.render()
                 action = [0, 0, 0, 0, 0]
                 action[3] = -0.01 # keep the gripper closed
 

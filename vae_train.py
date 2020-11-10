@@ -39,7 +39,7 @@ if __name__ == "__main__":
     vae = VAE()
     if args.command == "train":
         vae.to(device)
-        writer = SummaryWriter("experiments/vae_again".format(args.epochs))
+        writer = SummaryWriter("experiments/vae".format(args.epochs))
         acts_dataset_train = ActivationsDataset(args.dataset_path)
         acts_dataset_val = ActivationsDataset(args.dataset_path)
         indices = torch.randperm(len(acts_dataset_train)).tolist()

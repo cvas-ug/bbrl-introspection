@@ -37,7 +37,7 @@ def get_behaviour_from_model_output(model_output, behaviour):
     num = len(behaviour_means)
     act = torch.zeros(num).type(torch.cuda.FloatTensor)
     for i in range(num):
-        normal = Normal(behaviour_means[i], behaviour_log_stds[i].exp())
+        normal = Normal(behaviour_means[i], behaviour_log_stds[i])
         X = normal.rsample()
         act[i] = torch.tanh(X)
     return act
@@ -48,9 +48,9 @@ def train(rank, args, shared_model, counter, lock, optimizer=None):
     env = gym.make("FetchPickAndPlace-v1")
     flattened_env = gym.wrappers.FlattenDictWrapper(env, dict_keys=['observation', 'desired_goal'])
 
-    behaviour_net = BehaviourNetwork("weights/weights_again")
-    model = ChoreographNetwork("weights/weights_again", internal_states=True)
-    writer = SummaryWriter("experiments/choreographer_means_std_again/run_2/train")
+    behaviour_net = BehaviourNetwork(args.weights_path)
+    model = ChoreographNetwork(args.weights_path, internal_states=True)
+    writer = SummaryWriter("experiments/choreograph/sampling/run_10/train")
 
     if args.use_cuda:
         model.cuda()
@@ -64,8 +64,7 @@ def train(rank, args, shared_model, counter, lock, optimizer=None):
     for num_iter in count():
         with lock:
             counter.value += 1
-        # if num_iter == 2000:
-        #     break
+        
         obs = env.reset()
         timestep = 0 #count the total number of timesteps
         if rank == 0:
@@ -255,9 +254,9 @@ def test(rank, args, shared_model, counter):
     env = gym.make("FetchPickAndPlace-v1")
     flattened_env = gym.wrappers.FlattenDictWrapper(env, dict_keys=['observation', 'desired_goal'])
 
-    behaviour_net = BehaviourNetwork("weights/weights_again")
-    model = ChoreographNetwork("weights/weights_again", internal_states=True)
-    writer = SummaryWriter("experiments/choreographer_means_std_again/run_2/train")
+    behaviour_net = BehaviourNetwork(args.weights_path)
+    model = ChoreographNetwork(args.weights_path, internal_states=True)
+    writer = SummaryWriter("experiments/choreograph/sampling/run_10/test")
     if args.use_cuda:
         model.cuda()
         behaviour_net.cuda()

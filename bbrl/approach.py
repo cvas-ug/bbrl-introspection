@@ -18,7 +18,7 @@ def get_behaviour_from_model_output(behaviour_means, behaviour_log_stds):
     num = len(behaviour_means)
     act = torch.zeros(num).type(torch.cuda.FloatTensor)
     for i in range(num):
-        normal = Normal(behaviour_means[i], behaviour_log_stds[i].exp())
+        normal = Normal(behaviour_means[i], behaviour_log_stds[i])
         X = normal.rsample()
         act[i] = torch.tanh(X)
     return act
@@ -36,7 +36,7 @@ def train(rank, args, shared_model, counter, lock, optimizer=None):
     env = gym.make("FetchPickAndPlace-v1")
     flattened_env = gym.wrappers.FlattenDictWrapper(env, dict_keys=['observation', 'desired_goal'])
 
-    model = BehaviourNetwork("weights", args.command)
+    model = BehaviourNetwork(args.weights_path, args.command)
     
     if args.use_cuda:
         model.cuda()
@@ -137,7 +137,7 @@ def test(rank, args, shared_model, counter):
     env = gym.make("FetchPickAndPlace-v1")
     flattened_env = gym.wrappers.FlattenDictWrapper(env, dict_keys=['observation', 'desired_goal'])
 
-    model = BehaviourNetwork("weights", args.command)
+    model = BehaviourNetwork(args.weights_path, args.command)
     if args.use_cuda:
         model.cuda()
     model.eval()

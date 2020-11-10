@@ -97,11 +97,11 @@ class ReactiveNet(nn.Module):
 
         output = {}
         output["approach_means"] = approach_means
-        output["approach_log_stds"] = approach_log_stds
+        output["approach_log_stds"] = approach_log_stds.exp()
         output["retract_means"] = retract_means
-        output["retract_log_stds"] = retract_log_stds
+        output["retract_log_stds"] = retract_log_stds.exp()
         output["grasp_means"] = grasp_means
-        output["grasp_log_stds"] = grasp_log_stds
+        output["grasp_log_stds"] = grasp_log_stds.exp()
         
         return output
 

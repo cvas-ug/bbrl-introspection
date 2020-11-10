@@ -20,7 +20,7 @@ class ActorCritic(nn.Module):
         # 3) Latent Means Only -> 50
         # 4) Latent Means & Log Variance -> 100
         # 5) Sampling from Latent Space -> 50
-        self.input_dim = 100 if internal_states else 128
+        self.input_dim = 50 if internal_states else 128
 
         self.lstm = nn.LSTMCell(self.input_dim, 32)
         self.critic_linear = nn.Linear(32, 1)

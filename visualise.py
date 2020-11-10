@@ -222,6 +222,7 @@ if __name__ == "__main__":
                 ),
             ])
         fig.update_layout(
+            title_text="Sampling From Latent Space",
             hovermode="x",
             xaxis_title="Episodes",
             yaxis_title="Success",
@@ -232,7 +233,7 @@ if __name__ == "__main__":
                 size=20
             )
         )
-        fig.add_annotation(x=df["Step"].iloc[-1], y=df["noise_5_mean"].iloc[-1], text=df["noise_5_mean"].iloc[-1], arrowhead=2, textangle=0, ayref='y', ax=1, ay=90)
-        fig.add_annotation(x=df["Step"].iloc[-1], y=df["noise_10_mean"].iloc[-1], text=df["noise_10_mean"].iloc[-1], arrowhead=2, textangle=0, ayref='y', ax=1, ay=35)
+        fig.add_annotation(x=df["Step"].iloc[-1], y=df["mean"].iloc[-1], text=df["mean"].iloc[-1], arrowhead=2, textangle=0, ayref='y', ax=1, ay=90)
+        # fig.add_annotation(x=df["Step"].iloc[-1], y=df["noise_10_mean"].iloc[-1], text=df["noise_10_mean"].iloc[-1], arrowhead=2, textangle=0, ayref='y', ax=1, ay=35)
         fig.update_yaxes(range=[0,100])
         fig.show()

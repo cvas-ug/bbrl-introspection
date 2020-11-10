@@ -38,6 +38,7 @@ if __name__ == "__main__":
     parser.add_argument('--value-loss-coef', type=float, default=0.5,
                     help='value loss coefficient (default: 0.5)')
     parser.add_argument("--noise", type=int)
+    parser.add_argument("--weights-path", type=str)
     args = parser.parse_args()
 
     if args.command == "approach":
@@ -50,11 +51,10 @@ if __name__ == "__main__":
         from choreograph import train, test
         
     multi_proc = mp.get_context('spawn')
-    print("Cuda: " + str(torch.cuda.is_available()))
     env = gym.make("FetchPickAndPlace-v1")
-    shared_model = BehaviourNetwork("weights", args.command)
+    shared_model = BehaviourNetwork(args.weights_path, args.command)
     if args.command == "choreograph":
-        shared_model = ChoreographNetwork("weights")
+        shared_model = ChoreographNetwork(args.weights_path, internal_states=True)
     if args.use_cuda:
         shared_model.cuda()
     

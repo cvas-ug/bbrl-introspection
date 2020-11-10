@@ -9,5 +9,6 @@ experiments/
 .python-version
 *.html
 *.pth
+*.pt
 vaed.py
 train.py
