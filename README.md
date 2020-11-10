@@ -1,4 +1,4 @@
-# Source Code for Paper
+# Source Code for Intrinsic Robotic Introspection: Learning Internal States From Neuron Activations
 
 > To run this code you first need to have a MuJoCo licence and mjpro150.
 
