@@ -10,5 +10,6 @@ experiments/
 *.html
 *.pth
 *.pt
+*.csv
 vaed.py
 train.py

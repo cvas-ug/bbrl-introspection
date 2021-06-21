@@ -46,12 +46,14 @@ def train(rank, args, shared_model, counter, lock, optimizer=None):
     FloatTensor = torch.cuda.FloatTensor if args.use_cuda else torch.FloatTensor
     
     env = gym.make("FetchPickAndPlace-v1")
+
     flattened_env = gym.wrappers.FlattenDictWrapper(env, dict_keys=['observation', 'desired_goal'])
 
     behaviour_net = BehaviourNetwork(args.weights_path)
     model = ChoreographNetwork(args.weights_path, internal_states=True)
-    writer = SummaryWriter("experiments/choreograph/sampling/run_10/train")
-
+    # model = ChoreographNetwork(args.weights_path)
+    writer = SummaryWriter("experiments/choreograph/means_logvar_unfrozen/run_5")
+    torch.cuda.manual_seed_all(29)
     if args.use_cuda:
         model.cuda()
         behaviour_net.cuda()
@@ -61,6 +63,8 @@ def train(rank, args, shared_model, counter, lock, optimizer=None):
     
     model.train()
     done = True
+    a = 0
+    success = 0
     for num_iter in count():
         with lock:
             counter.value += 1
@@ -84,14 +88,12 @@ def train(rank, args, shared_model, counter, lock, optimizer=None):
             hx = Variable(hx.data).type(FloatTensor)
 
         state_inp = torch.from_numpy(flattened_env.observation(obs)).type(FloatTensor)
-        # noise = Normal(0, 0.1).sample(sample_shape=state_inp.size()).type(FloatTensor)
-        # state_inp = state_inp + (args.noise / 100) * noise
+        # noise = Normal(0, 0.1).samplmodel
         output = model(state_inp, hx, cx)
         state_value = output["state"]
         action_values = output["actions"]
         hx = output["hidden"]
         cx = output["cell"]
-        
         prob = F.softmax(action_values, dim=-1)
         log_prob = F.log_softmax(action_values, dim=-1)
         behaviour = prob.max(-1, keepdim=True)[1].data
@@ -215,6 +217,7 @@ def train(rank, args, shared_model, counter, lock, optimizer=None):
         
         if info['is_success'] == 1.0:
             reward = torch.Tensor([1.0]).type(FloatTensor)
+            success += 1
         else:
             reward = torch.Tensor([-1.0]).type(FloatTensor)
         rewards.append(reward)
@@ -238,7 +241,6 @@ def train(rank, args, shared_model, counter, lock, optimizer=None):
                 log_probs[i] * Variable(gae).type(FloatTensor)
 
         total_loss = policy_loss + args.value_loss_coef * value_loss
-        
         optimizer.zero_grad()
         (total_loss).backward(retain_graph=True)
         torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
@@ -256,7 +258,9 @@ def test(rank, args, shared_model, counter):
 
     behaviour_net = BehaviourNetwork(args.weights_path)
     model = ChoreographNetwork(args.weights_path, internal_states=True)
-    writer = SummaryWriter("experiments/choreograph/sampling/run_10/test")
+    # model = ChoreographNetwork(args.weights_path)
+    
+    writer = SummaryWriter("experiments/choreograph/means_logvar_unfrozen/run_5")
     if args.use_cuda:
         model.cuda()
         behaviour_net.cuda()
@@ -274,7 +278,6 @@ def test(rank, args, shared_model, counter):
         while ep_num < 100:
             ep_num +=1            
             obs = env.reset()
-            
             timestep = 0
             if done:
                 cx = Variable(torch.zeros(1, 32)).type(FloatTensor)
@@ -282,7 +285,6 @@ def test(rank, args, shared_model, counter):
             else:
                 cx = Variable(cx.data).type(FloatTensor)
                 hx = Variable(hx.data).type(FloatTensor)
-
             state_inp = torch.from_numpy(flattened_env.observation(obs)).type(FloatTensor)
             # noise = Normal(0, 0.1).sample(sample_shape=state_inp.size()).type(FloatTensor)
             # state_inp = state_inp + (args.noise / 100) * noise
@@ -391,11 +393,9 @@ def test(rank, args, shared_model, counter):
                 timestep += 1
 
                 if timestep >= env._max_episode_steps: break
-                
             if info['is_success'] == 1.0:
                 success +=1
-            if done:
-                if ep_num % 100==0:
-                    total_eps += 100
-                    print("num episodes {}, success {}".format(total_eps, success))
-                    writer.add_scalar("test_succes", success, total_eps)
+            if ep_num % 100==0:
+                total_eps += 100
+                print("num episodes {}, success {}".format(total_eps, success))
+                writer.add_scalar("test_succes", success, total_eps)

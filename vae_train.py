@@ -74,7 +74,8 @@ if __name__ == "__main__":
                     loss = loss_fn(outputs, targets)
                     total_eval_loss += loss.cpu().detach().item()
                 writer.add_scalar("eval_loss", total_eval_loss/len(val_dataloader), i)
-        torch.save(vae.state_dict(), args.weights_path)
+            if i != 0 and i % 5 == 0:
+                torch.save(vae.state_dict(), f"{args.weights_path}_{i}.pth")
     else:
         vae.to(device)
         vae.load_state_dict(torch.load(args.weights_path))
@@ -96,22 +97,25 @@ if __name__ == "__main__":
 
         latent_acts = np.array(latent_acts)
         labels = np.array(labels)
-        tsne = TSNE(n_components=2, init="pca", random_state=0)
-        # tsne = TSNE(n_components=3, init="pca", random_state=0)
+        # tsne = TSNE(n_components=2, init="pca", random_state=0)
+        tsne = TSNE(n_components=3, init="pca", random_state=0)
         X = tsne.fit_transform(latent_acts)
+        behaviours = ["approach", "retract", "grasp"]
+
         data = np.vstack((X.T, labels)).T
-        df = pd.DataFrame(data=data, columns=["z1", "z2", "label"])
-        # df = pd.DataFrame(data=data, columns=["z1", "z2", "z3", "label"])
-        fig = px.scatter(df, x="z1", y="z2", color="label")
+        # df = pd.DataFrame(data=data, columns=["z1", "z2", "label"])
+        df = pd.DataFrame(data=data, columns=["z1", "z2", "z3", "label"])
+        df.to_csv("vae_latent.csv")
+        # fig = px.scatter(df, x="z1", y="z2", color="label")
         # fig = px.scatter_3d(df, x="z1", y="z2", z="z3", color="label")
-        fig.update_layout(
-            title="VAE Latent Space",
-            hovermode="x",
-            title_x=0.5,
-            font=dict(
-                family="Courier New, monospace",
-                size=18
-            )
-        )
-        fig.show()
+        # fig.update_layout(
+        #     title="VAE Latent Space",
+        #     hovermode="x",
+        #     title_x=0.5,
+        #     font=dict(
+        #         family="Courier New, monospace",
+        #         size=18
+        #     )
+        # )
+        # fig.show()
         # pio.write_html(fig, file="{}_3_comps.html".format(args.weights_path.split('.')[0]), auto_open=True)

@@ -55,6 +55,7 @@ def get_behaviour_from_model_output(model_output, behaviour):
     return act
 
 env = gym.make("FetchPickAndPlace-v1")
+env.seed(seed=1)
 flattened_env = gym.wrappers.FlattenDictWrapper(env, dict_keys=['observation', 'desired_goal'])
 
 parser = argparse.ArgumentParser(description='A3C')
@@ -62,9 +63,9 @@ parser.add_argument('--use-cuda',default=True,
                     help='run on gpu.')
 parser.add_argument("--noise", type=int)
 args = parser.parse_args() 
-writer = SummaryWriter("experiments/test/collect_acts_hardcoded_behaviours")
-behaviour_net = BehaviourNetwork("weights")
-choreographer = ChoreographNetwork("weights/orig_choreographer")
+writer = SummaryWriter("experiments/test")
+behaviour_net = BehaviourNetwork("./")
+choreographer = ChoreographNetwork("./")
 if args.use_cuda:
     behaviour_net.cuda()
     choreographer.cuda()
@@ -85,7 +86,7 @@ behaviour_net.feature_net.fc1.register_forward_hook(get_activation("fc1"))
 behaviour_net.feature_net.fc2.register_forward_hook(get_activation("fc2"))
 acts_dict = {"approach": {}, "grasp": {}, "retract": {}}
 while ep_num < max_eps:
-    ep_num +=1
+    
     for key in acts_dict.keys():
         acts_dict[key][ep_num] = []
     obs = env.reset()
@@ -101,17 +102,17 @@ while ep_num < max_eps:
         cx = Variable(cx.data).type(FloatTensor)
         hx = Variable(hx.data).type(FloatTensor)
 
-    # output = choreographer(state_inp, hx, cx)
-    # state_value = output["state"]
-    # action_values = output["actions"]
-    # hx = output["hidden"]
-    # cx = output["cell"]
+    output = choreographer(state_inp, hx, cx)
+    state_value = output["state"]
+    action_values = output["actions"]
+    hx = output["hidden"]
+    cx = output["cell"]
 
-    # prob = F.softmax(action_values, dim=-1)
+    prob = F.softmax(action_values, dim=-1)
     
-    # act_model = prob.max(-1, keepdim=True)[1].data
+    act_model = prob.max(-1, keepdim=True)[1].data
     
-    # action_out = act_model.to(torch.device("cpu"))
+    action_out = act_model.to(torch.device("cpu"))
     object_oriented_goal = obs['observation'][6:9]
     object_oriented_goal[2] += 0.03 # first make the gripper go slightly above the object
     while np.linalg.norm(object_oriented_goal) >= 0.015 and timestep <= env._max_episode_steps:
@@ -119,23 +120,38 @@ while ep_num < max_eps:
         action = [0, 0, 0, 0, 0]
         _, output = behaviour_net(state_inp)
         if ep_num == max_eps - 1:
-            all_outputs = get_all_model_outputs(output)
-            writer.add_scalar("approach_x", all_outputs["approach"][0].cpu().detach().item(), timestep)
-            writer.add_scalar("approach_y", all_outputs["approach"][1].cpu().detach().item(), timestep)
-            writer.add_scalar("approach_z", all_outputs["approach"][2].cpu().detach().item(), timestep)
-            writer.add_scalar("grasp_x", all_outputs["grasp"][0].cpu().detach().item(), timestep)
-            writer.add_scalar("grasp_y", all_outputs["grasp"][1].cpu().detach().item(), timestep)
-            writer.add_scalar("grasp_z", all_outputs["grasp"][2].cpu().detach().item(), timestep)
-            writer.add_scalar("retract_x", all_outputs["retract"][0].cpu().detach().item(), timestep)
-            writer.add_scalar("retract_y", all_outputs["retract"][1].cpu().detach().item(), timestep)
-            writer.add_scalar("retract_z", all_outputs["retract"][2].cpu().detach().item(), timestep)
+            writer.add_scalar("grip_x", obs["observation"][0], timestep)
+            writer.add_scalar("grip_y", obs["observation"][1], timestep)
+            writer.add_scalar("grip_z", obs["observation"][2], timestep)
+            writer.add_scalar("obj_x", obs["observation"][3], timestep)
+            writer.add_scalar("obj_y", obs["observation"][4], timestep)
+            writer.add_scalar("obj_z", obs["observation"][5], timestep)
+            writer.add_scalar("obj_rel_grip_x", obs["observation"][6], timestep)
+            writer.add_scalar("obj_rel_grip_y", obs["observation"][7], timestep)
+            writer.add_scalar("obj_rel_grip_z", obs["observation"][8], timestep)
+            writer.add_scalar("grip_state_1", obs["observation"][9], timestep)
+            writer.add_scalar("grip_state_2", obs["observation"][10], timestep)
+            writer.add_scalar("obj_rotx", obs["observation"][11], timestep)
+            writer.add_scalar("obj_roty", obs["observation"][12], timestep)
+            writer.add_scalar("obj_rotz", obs["observation"][13], timestep)
+            writer.add_scalar("obj_velx", obs["observation"][14], timestep)
+            writer.add_scalar("obj_vely", obs["observation"][15], timestep)
+            writer.add_scalar("obj_velz", obs["observation"][16], timestep)
+            writer.add_scalar("obj_velrx", obs["observation"][17], timestep)
+            writer.add_scalar("obj_velry", obs["observation"][18], timestep)
+            writer.add_scalar("obj_velrz", obs["observation"][19], timestep)
+            writer.add_scalar("grip_velx", obs["observation"][20], timestep)
+            writer.add_scalar("grip_vely", obs["observation"][21], timestep)
+            writer.add_scalar("grip_velz", obs["observation"][22], timestep)
+            writer.add_scalar("grip_vel_1", obs["observation"][23], timestep)
+            writer.add_scalar("grip_vel_2", obs["observation"][24], timestep)
         timestep_dict = {}
         for key in ["fc1", "fc2"]:
             acts_tensor = activations[key]
             acts_tensor = F.elu(acts_tensor)
             timestep_dict[key] = acts_tensor.cpu()
         acts_dict["approach"][ep_num].append(timestep_dict)
-        act_tensor = get_behaviour_from_model_output(output, 0)
+        act_tensor = get_behaviour_from_model_output(output, action_out)
         
         for i in range(3):
             action[i] = act_tensor[i].cpu().detach().numpy()
@@ -150,46 +166,59 @@ while ep_num < max_eps:
         # state_inp = state_inp + (args.noise / 100) * noise
         
         if timestep >= env._max_episode_steps: break
-    if ep_num == max_eps - 1:
-        print(timestep)
-    # output = choreographer(state_inp, hx, cx)
-    # state_value = output["state"]
-    # action_values = output["actions"]
-    # hx = output["hidden"]
-    # cx = output["cell"]
-    # prob = F.softmax(action_values, dim=-1)
-    # act_model = prob.max(-1, keepdim=True)[1].data
-    # action_out = act_model.to(torch.device("cpu"))
+    output = choreographer(state_inp, hx, cx)
+    state_value = output["state"]
+    action_values = output["actions"]
+    hx = output["hidden"]
+    cx = output["cell"]
+    prob = F.softmax(action_values, dim=-1)
+    act_model = prob.max(-1, keepdim=True)[1].data
+    action_out = act_model.to(torch.device("cpu"))
     object_oriented_goal = obs['observation'][6:9]
     while np.linalg.norm(object_oriented_goal) >= 0.005 and timestep <= env._max_episode_steps:
         # env.render()
         action = [0, 0, 0, 0, 0]
         _, output = behaviour_net(state_inp)
         if ep_num == max_eps - 1:
-            all_outputs = get_all_model_outputs(output)
-            writer.add_scalar("approach_x", all_outputs["approach"][0].cpu().detach().item(), timestep)
-            writer.add_scalar("approach_y", all_outputs["approach"][1].cpu().detach().item(), timestep)
-            writer.add_scalar("approach_z", all_outputs["approach"][2].cpu().detach().item(), timestep)
-            writer.add_scalar("grasp_x", all_outputs["grasp"][0].cpu().detach().item(), timestep)
-            writer.add_scalar("grasp_y", all_outputs["grasp"][1].cpu().detach().item(), timestep)
-            writer.add_scalar("grasp_z", all_outputs["grasp"][2].cpu().detach().item(), timestep)
-            writer.add_scalar("retract_x", all_outputs["retract"][0].cpu().detach().item(), timestep)
-            writer.add_scalar("retract_y", all_outputs["retract"][1].cpu().detach().item(), timestep)
-            writer.add_scalar("retract_z", all_outputs["retract"][2].cpu().detach().item(), timestep)
+            writer.add_scalar("grip_x", obs["observation"][0], timestep)
+            writer.add_scalar("grip_y", obs["observation"][1], timestep)
+            writer.add_scalar("grip_z", obs["observation"][2], timestep)
+            writer.add_scalar("obj_x", obs["observation"][3], timestep)
+            writer.add_scalar("obj_y", obs["observation"][4], timestep)
+            writer.add_scalar("obj_z", obs["observation"][5], timestep)
+            writer.add_scalar("obj_rel_grip_x", obs["observation"][6], timestep)
+            writer.add_scalar("obj_rel_grip_y", obs["observation"][7], timestep)
+            writer.add_scalar("obj_rel_grip_z", obs["observation"][8], timestep)
+            writer.add_scalar("grip_state_1", obs["observation"][9], timestep)
+            writer.add_scalar("grip_state_2", obs["observation"][10], timestep)
+            writer.add_scalar("obj_rotx", obs["observation"][11], timestep)
+            writer.add_scalar("obj_roty", obs["observation"][12], timestep)
+            writer.add_scalar("obj_rotz", obs["observation"][13], timestep)
+            writer.add_scalar("obj_velx", obs["observation"][14], timestep)
+            writer.add_scalar("obj_vely", obs["observation"][15], timestep)
+            writer.add_scalar("obj_velz", obs["observation"][16], timestep)
+            writer.add_scalar("obj_velrx", obs["observation"][17], timestep)
+            writer.add_scalar("obj_velry", obs["observation"][18], timestep)
+            writer.add_scalar("obj_velrz", obs["observation"][19], timestep)
+            writer.add_scalar("grip_velx", obs["observation"][20], timestep)
+            writer.add_scalar("grip_vely", obs["observation"][21], timestep)
+            writer.add_scalar("grip_velz", obs["observation"][22], timestep)
+            writer.add_scalar("grip_vel_1", obs["observation"][23], timestep)
+            writer.add_scalar("grip_vel_2", obs["observation"][24], timestep)
         timestep_dict = {}
         for key in ["fc1", "fc2"]:
             acts_tensor = activations[key]
             acts_tensor = F.elu(acts_tensor)
             timestep_dict[key] = acts_tensor.cpu()
         acts_dict["grasp"][ep_num].append(timestep_dict)
-        act_tensor = get_behaviour_from_model_output(output, 1)
+        act_tensor = get_behaviour_from_model_output(output, action_out)
 
         for i in range(len(object_oriented_goal)):
             action[i] = act_tensor[i].cpu().detach().numpy()
         
         action[3]= -0.01 
-        # if action_out == 1:
-        action[4] = act_tensor[3].cpu().detach().numpy()
+        if action_out == 1:
+            action[4] = act_tensor[3].cpu().detach().numpy()
         obs, reward, done, info = env.step(action)
         timestep += 1
 
@@ -198,17 +227,14 @@ while ep_num < max_eps:
         # noise = Normal(0, 0.1).sample(sample_shape=state_inp.size()).type(FloatTensor)
         # state_inp = state_inp + (args.noise / 100) * noise
         if timestep >= env._max_episode_steps: break
-    if ep_num == max_eps - 1:
-        print(timestep)
-
-    # output = choreographer(state_inp, hx, cx)
-    # state_value = output["state"]
-    # action_values = output["actions"]
-    # hx = output["hidden"]
-    # cx = output["cell"]
-    # prob = F.softmax(action_values, dim=-1)
-    # act_model = prob.max(-1, keepdim=True)[1].data
-    # action_out = act_model.to(torch.device("cpu"))
+    output = choreographer(state_inp, hx, cx)
+    state_value = output["state"]
+    action_values = output["actions"]
+    hx = output["hidden"]
+    cx = output["cell"]
+    prob = F.softmax(action_values, dim=-1)
+    act_model = prob.max(-1, keepdim=True)[1].data
+    action_out = act_model.to(torch.device("cpu"))
     goal = obs['desired_goal']
     object_pos = obs['observation'][3:6]
     while np.linalg.norm(goal - object_pos) >= 0.01 and timestep <= env._max_episode_steps:
@@ -216,23 +242,38 @@ while ep_num < max_eps:
         action = [0, 0, 0, 0, 0]
         _, output = behaviour_net(state_inp)
         if ep_num == max_eps - 1:
-            all_outputs = get_all_model_outputs(output)
-            writer.add_scalar("approach_x", all_outputs["approach"][0].cpu().detach().item(), timestep)
-            writer.add_scalar("approach_y", all_outputs["approach"][1].cpu().detach().item(), timestep)
-            writer.add_scalar("approach_z", all_outputs["approach"][2].cpu().detach().item(), timestep)
-            writer.add_scalar("grasp_x", all_outputs["grasp"][0].cpu().detach().item(), timestep)
-            writer.add_scalar("grasp_y", all_outputs["grasp"][1].cpu().detach().item(), timestep)
-            writer.add_scalar("grasp_z", all_outputs["grasp"][2].cpu().detach().item(), timestep)
-            writer.add_scalar("retract_x", all_outputs["retract"][0].cpu().detach().item(), timestep)
-            writer.add_scalar("retract_y", all_outputs["retract"][1].cpu().detach().item(), timestep)
-            writer.add_scalar("retract_z", all_outputs["retract"][2].cpu().detach().item(), timestep)
+            writer.add_scalar("grip_x", obs["observation"][0], timestep)
+            writer.add_scalar("grip_y", obs["observation"][1], timestep)
+            writer.add_scalar("grip_z", obs["observation"][2], timestep)
+            writer.add_scalar("obj_x", obs["observation"][3], timestep)
+            writer.add_scalar("obj_y", obs["observation"][4], timestep)
+            writer.add_scalar("obj_z", obs["observation"][5], timestep)
+            writer.add_scalar("obj_rel_grip_x", obs["observation"][6], timestep)
+            writer.add_scalar("obj_rel_grip_y", obs["observation"][7], timestep)
+            writer.add_scalar("obj_rel_grip_z", obs["observation"][8], timestep)
+            writer.add_scalar("grip_state_1", obs["observation"][9], timestep)
+            writer.add_scalar("grip_state_2", obs["observation"][10], timestep)
+            writer.add_scalar("obj_rotx", obs["observation"][11], timestep)
+            writer.add_scalar("obj_roty", obs["observation"][12], timestep)
+            writer.add_scalar("obj_rotz", obs["observation"][13], timestep)
+            writer.add_scalar("obj_velx", obs["observation"][14], timestep)
+            writer.add_scalar("obj_vely", obs["observation"][15], timestep)
+            writer.add_scalar("obj_velz", obs["observation"][16], timestep)
+            writer.add_scalar("obj_velrx", obs["observation"][17], timestep)
+            writer.add_scalar("obj_velry", obs["observation"][18], timestep)
+            writer.add_scalar("obj_velrz", obs["observation"][19], timestep)
+            writer.add_scalar("grip_velx", obs["observation"][20], timestep)
+            writer.add_scalar("grip_vely", obs["observation"][21], timestep)
+            writer.add_scalar("grip_velz", obs["observation"][22], timestep)
+            writer.add_scalar("grip_vel_1", obs["observation"][23], timestep)
+            writer.add_scalar("grip_vel_2", obs["observation"][24], timestep)
         timestep_dict = {}
         for key in ["fc1", "fc2"]:
             acts_tensor = activations[key]
             acts_tensor = F.elu(acts_tensor)
             timestep_dict[key] = acts_tensor.cpu()
         acts_dict["retract"][ep_num].append(timestep_dict)
-        act_tensor = get_behaviour_from_model_output(output, 2)
+        act_tensor = get_behaviour_from_model_output(output, action_out)
 
         for i in range(len(goal - object_pos)):
             action[i] = act_tensor[i].cpu().detach().numpy()
@@ -246,35 +287,24 @@ while ep_num < max_eps:
         object_pos = obs['observation'][3:6]
         if timestep >= env._max_episode_steps: break
 
-    if ep_num == max_eps - 1:
-        print(timestep)
     while True: #limit the number of timesteps in the episode to a fixed duration
         # env.render()
         action = [0, 0, 0, 0, 0]
         action[3] = -0.01 # keep the gripper closed
         _, output = behaviour_net(state_inp)
-        if ep_num == max_eps - 1:
-            all_outputs = get_all_model_outputs(output)
-            writer.add_scalar("approach_x", all_outputs["approach"][0].cpu().detach().item(), timestep)
-            writer.add_scalar("approach_y", all_outputs["approach"][1].cpu().detach().item(), timestep)
-            writer.add_scalar("approach_z", all_outputs["approach"][2].cpu().detach().item(), timestep)
-            writer.add_scalar("grasp_x", all_outputs["grasp"][0].cpu().detach().item(), timestep)
-            writer.add_scalar("grasp_y", all_outputs["grasp"][1].cpu().detach().item(), timestep)
-            writer.add_scalar("grasp_z", all_outputs["grasp"][2].cpu().detach().item(), timestep)
-            writer.add_scalar("retract_x", all_outputs["retract"][0].cpu().detach().item(), timestep)
-            writer.add_scalar("retract_y", all_outputs["retract"][1].cpu().detach().item(), timestep)
-            writer.add_scalar("retract_z", all_outputs["retract"][2].cpu().detach().item(), timestep)
+
         obs, reward, done, info = env.step(action)
         timestep += 1
         state_inp = torch.from_numpy(flattened_env.observation(obs)).type(FloatTensor)
         # noise = Normal(0, 0.1).sample(sample_shape=state_inp.size()).type(FloatTensor)
         # state_inp = state_inp + (args.noise / 100) * noise
         if timestep >= env._max_episode_steps: break
-
+    ep_num += 1
     if info['is_success'] == 1.0:
         success +=1
-    if done:
-        if ep_num % 100==0:            
-            print("num episodes {}, success {}".format(ep_num, success))
+        print("success")
+    if ep_num % 100==0:            
+        print("num episodes {}, success {}".format(ep_num, success))
+        success = 0
 
 torch.save(acts_dict, "acts.pt")

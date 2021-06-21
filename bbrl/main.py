@@ -53,15 +53,21 @@ if __name__ == "__main__":
     multi_proc = mp.get_context('spawn')
     env = gym.make("FetchPickAndPlace-v1")
     shared_model = BehaviourNetwork(args.weights_path, args.command)
-    if args.command == "choreograph":
-        shared_model = ChoreographNetwork(args.weights_path, internal_states=True)
     if args.use_cuda:
         shared_model.cuda()
-    
-    torch.cuda.manual_seed_all(12)
-
     optimizer = SharedAdam(shared_model.parameters(), lr=args.lr)
     optimizer.share_memory()
+    if args.command == "choreograph":
+        shared_model = ChoreographNetwork(args.weights_path, internal_states=True)
+        # shared_model = ChoreographNetwork(args.weights_path)
+        if args.use_cuda:
+            shared_model.cuda()
+        optimizer = SharedAdam(shared_model.parameters(), lr=args.lr)
+        optimizer.share_memory()
+    
+    
+    torch.cuda.manual_seed_all(29)
+
 
     processes = []
 

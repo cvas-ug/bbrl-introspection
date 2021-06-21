@@ -37,7 +37,7 @@ def train(rank, args, shared_model, counter, lock, optimizer=None):
     flattened_env = gym.wrappers.FlattenDictWrapper(env, dict_keys=['observation', 'desired_goal'])
 
     model = BehaviourNetwork(args.weights_path, args.command)
-    
+    writer = SummaryWriter("experiments/approach")
     if args.use_cuda:
         model.cuda()
     torch.cuda.manual_seed_all(12)
@@ -91,6 +91,7 @@ def train(rank, args, shared_model, counter, lock, optimizer=None):
             object_oriented_goal[2] += 0.03
             state_inp = torch.from_numpy(flattened_env.observation(obs)).type(FloatTensor)
             if timeStep >= env._max_episode_steps: break
+        writer.add_scalar("loss", np.mean(losses), num_iter)
         object_oriented_goal = obs['observation'][6:9]
         while np.linalg.norm(object_oriented_goal) >= 0.005 and timeStep <= env._max_episode_steps :
            

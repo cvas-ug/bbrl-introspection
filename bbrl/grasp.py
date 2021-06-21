@@ -35,7 +35,7 @@ def train(rank, args, shared_model, counter, lock, optimizer=None):
     
     env = gym.make("FetchPickAndPlace-v1")
     flattened_env = gym.wrappers.FlattenDictWrapper(env, dict_keys=['observation', 'desired_goal'])
-
+    writer = SummaryWriter("experiments/grasp")
     model = BehaviourNetwork(args.weights_path, args.command)
        
     if args.use_cuda:
@@ -79,6 +79,8 @@ def train(rank, args, shared_model, counter, lock, optimizer=None):
             
         state_inp = torch.from_numpy(flattened_env.observation(obs)).type(FloatTensor)
         object_oriented_goal = obs['observation'][6:9]
+        losses = []
+
         while np.linalg.norm(object_oriented_goal) >= 0.005 and timeStep <= env._max_episode_steps :
             error = torch.zeros(3).type(FloatTensor) 
             action = [0, 0, 0, 0, 0]
@@ -98,6 +100,7 @@ def train(rank, args, shared_model, counter, lock, optimizer=None):
             loss.backward(retain_graph=True)
             
             (error2).backward(retain_graph=True)
+            losses.append(loss.item() + error2.item())
             ensure_shared_grads(model, shared_model)
             optimizer.step()
             action[3]= -0.01 
@@ -107,7 +110,7 @@ def train(rank, args, shared_model, counter, lock, optimizer=None):
             object_oriented_goal = obs['observation'][6:9]
             state_inp = torch.from_numpy(flattened_env.observation(obs)).type(FloatTensor)
             if timeStep >= env._max_episode_steps: break
-
+        writer.add_scalar("loss", np.mean(losses), num_iter)
         goal = obs['desired_goal']
         objectPos = obs['observation'][3:6]
         while np.linalg.norm(goal - objectPos) >= 0.01 and timeStep <= env._max_episode_steps :
@@ -152,7 +155,8 @@ def test(rank, args, shared_model, counter):
         num_ep = counter.value
         success = 0
         while ep_num <= 100:
-            ep_num +=1            
+            ep_num +=1
+
             obs = env.reset()
             timeStep = 0
             object_oriented_goal = obs['observation'][6:9]

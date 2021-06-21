@@ -17,8 +17,6 @@ if __name__ == "__main__":
     if args.command == "value":
         colours = ["blue", "red", "green"]
         data_files = next(os.walk(args.path))[2]
-        
-        data_files = next(os.walk(args.path))[2]
         data_files = sorted(data_files)
         behaviours = ["approach value", "grasp value", "retract value"]
         behaviour_index = 0
@@ -40,50 +38,49 @@ if __name__ == "__main__":
             
             df["mean"] = df.loc[:, behaviour_name + "_0" : behaviour_name + "_{}".format(step - 1)].mean(axis=1)
             df["std"] = df.loc[:, behaviour_name + "_0" : behaviour_name + "_{}".format(step - 1)].std(axis=1).round(2)
-            fig = go.Figure([
-                go.Scatter(
-                    name="State Value",
-                    x=df["Step"],
-                    y=df["mean"],
-                    mode="lines",
-                    marker=dict(color=colours[behaviour_index])
-                ),
-                go.Scatter(
-                    x=df["Step"],
-                    y=df["mean"]+df["std"],
-                    mode="lines",
-                    marker=dict(color="#444"),
-                    line=dict(width=0),
-                    showlegend=False
-                ),
-                go.Scatter(
-                    x=df["Step"],
-                    y=df["mean"]-df["std"],
-                    marker=dict(color="#444"),
-                    line=dict(width=0),
-                    mode="lines",
-                    fillcolor='rgba(68, 68, 68, 0.3)',
-                    fill='tonexty',
-                    showlegend=False
-                )
-            ])
-            
-            fig.update_layout(
-                hovermode="x",
-                showlegend=False,
-                title_x=0.5,
-                font=dict(
-                family="Courier New, monospace",
-                size=20
-                )
-            )
-            print(behaviour_name)
-            print(len(df["mean"]))
-            fig.add_annotation(x=200, y=2.5, text="μ: {}<br>σ: {}".format(df["mean"].mean().round(2), df["mean"].std().round(2)), showarrow=False)
-            fig.update_yaxes(range=[-1.5, 4])
-            # fig.update_xaxes(range=[0, 2000])
+            df["mean"].to_csv(f"means_logvar_{behaviour_name}.csv", index=False)
             behaviour_index += 1
-            fig.show()
+        # fig = go.Figure([
+        #     go.Scatter(
+        #         name="State Value",
+        #         x=df["Step"],
+        #         y=df["mean"],
+        #         mode="lines",
+        #         marker=dict(color=colours[0])
+        #     ),
+        #     go.Scatter(
+        #         x=df["Step"],
+        #         y=df["mean"]+df["std"],
+        #         mode="lines",
+        #         marker=dict(color="#444"),
+        #         line=dict(width=0),
+        #         showlegend=False
+        #     ),
+        #     go.Scatter(
+        #         x=df["Step"],
+        #         y=df["mean"]-df["std"],
+        #         marker=dict(color="#444"),
+        #         line=dict(width=0),
+        #         mode="lines",
+        #         fillcolor='rgba(68, 68, 68, 0.3)',
+        #         fill='tonexty',
+        #         showlegend=False
+        #     )
+        # ])
+        
+        # fig.update_layout(
+        #     hovermode="x",
+        #     showlegend=False,
+        #     title_x=0.5,
+        #     font=dict(
+        #     family="Courier New, monospace",
+        #     size=20
+        #     )
+        # )
+        # fig.add_annotation(x=200, y=2.5, text="μ: {}<br>σ: {}".format(df["mean"].mean().round(2), df["mean"].std().round(2)), showarrow=False)
+        # fig.update_yaxes(range=[-1.5, 4])
+
+        # fig.show()
     elif args.command == "intention":
         data_files = next(os.walk(args.path))[2]
         for i in range(0, len(data_files), 3):
@@ -138,102 +135,102 @@ if __name__ == "__main__":
             for dir_name in dirs:
                 df[dir_name + "_mean"] = df.loc[:, dir_name + "_success_0":dir_name + "_success_4"].mean(axis=1)
                 df[dir_name + "_std"] = df.loc[:, dir_name + "_success_0":dir_name + "_success_4"].std(axis=1).round(2)
-        if not args.noise:
-            fig = go.Figure([
-                go.Scatter(
-                    x=df["Step"],
-                    y=df["mean"],
-                    mode="lines",
-                    marker=dict(color="blue"),
-                    showlegend=False
-                ),
-                go.Scatter(
-                    x=df["Step"],
-                    y=df["mean"]+df["std"],
-                    mode="lines",
-                    marker=dict(color="#444"),
-                    line=dict(width=0),
-                    showlegend=False
-                ),
-                go.Scatter(
-                    x=df["Step"],
-                    y=df["mean"]-df["std"],
-                    marker=dict(color="#444"),
-                    line=dict(width=0),
-                    mode="lines",
-                    fillcolor='rgba(68, 68, 68, 0.3)',
-                    fill='tonexty',
-                    showlegend=False
-                )
-            ])
-        else:
-            fig = go.Figure([
-                go.Scatter(
-                    name="5% Noise",
-                    x=df["Step"],
-                    y=df["noise_5_mean"],
-                    mode="lines",
-                    marker=dict(color="blue"),
-                    showlegend=False
-                ),
-                go.Scatter(
-                    x=df["Step"],
-                    y=df["noise_5_mean"]+df["noise_5_std"],
-                    mode="lines",
-                    marker=dict(color="#444"),
-                    line=dict(width=0),
-                    showlegend=False
-                ),
-                go.Scatter(
-                    x=df["Step"],
-                    y=df["noise_5_mean"]-df["noise_5_std"],
-                    marker=dict(color="#444"),
-                    line=dict(width=0),
-                    mode="lines",
-                    fillcolor='rgba(68, 68, 68, 0.3)',
-                    fill='tonexty',
-                    showlegend=False
-                ),
-                go.Scatter(
-                    name="10% Noise",
-                    x=df["Step"],
-                    y=df["noise_10_mean"],
-                    mode="lines",
-                    marker=dict(color="purple"),
-                    showlegend=False
-                ),
-                go.Scatter(
-                    x=df["Step"],
-                    y=df["noise_10_mean"]+df["noise_10_std"],
-                    mode="lines",
-                    marker=dict(color="#444"),
-                    line=dict(width=0),
-                    showlegend=False
-                ),
-                go.Scatter(
-                    x=df["Step"],
-                    y=df["noise_10_mean"]-df["noise_10_std"],
-                    marker=dict(color="#444"),
-                    line=dict(width=0),
-                    mode="lines",
-                    fillcolor='rgba(0, 68, 0, 0.3)',
-                    fill='tonexty',
-                    showlegend=False
-                ),
-            ])
-        fig.update_layout(
-            title_text="Sampling From Latent Space",
-            hovermode="x",
-            xaxis_title="Episodes",
-            yaxis_title="Success",
-            title_x=0.5,
-            showlegend=True,
-            font=dict(
-                family="Courier New, monospace",
-                size=20
-            )
-        )
-        fig.add_annotation(x=df["Step"].iloc[-1], y=df["mean"].iloc[-1], text=df["mean"].iloc[-1], arrowhead=2, textangle=0, ayref='y', ax=1, ay=90)
-        # fig.add_annotation(x=df["Step"].iloc[-1], y=df["noise_10_mean"].iloc[-1], text=df["noise_10_mean"].iloc[-1], arrowhead=2, textangle=0, ayref='y', ax=1, ay=35)
-        fig.update_yaxes(range=[0,100])
-        fig.show()
+        # if not args.noise:
+        #     fig = go.Figure([
+        #         go.Scatter(
+        #             x=df["Step"],
+        #             y=df["mean"],
+        #             mode="lines",
+        #             marker=dict(color="blue"),
+        #             showlegend=False
+        #         ),
+        #         go.Scatter(
+        #             x=df["Step"],
+        #             y=df["mean"]+df["std"],
+        #             mode="lines",
+        #             marker=dict(color="#444"),
+        #             line=dict(width=0),
+        #             showlegend=False
+        #         ),
+        #         go.Scatter(
+        #             x=df["Step"],
+        #             y=df["mean"]-df["std"],
+        #             marker=dict(color="#444"),
+        #             line=dict(width=0),
+        #             mode="lines",
+        #             fillcolor='rgba(68, 68, 68, 0.3)',
+        #             fill='tonexty',
+        #             showlegend=False
+        #         )
+        #     ])
+        # else:
+        #     fig = go.Figure([
+        #         go.Scatter(
+        #             name="5% Noise",
+        #             x=df["Step"],
+        #             y=df["noise_5_mean"],
+        #             mode="lines",
+        #             marker=dict(color="blue"),
+        #             showlegend=False
+        #         ),
+        #         go.Scatter(
+        #             x=df["Step"],
+        #             y=df["noise_5_mean"]+df["noise_5_std"],
+        #             mode="lines",
+        #             marker=dict(color="#444"),
+        #             line=dict(width=0),
+        #             showlegend=False
+        #         ),
+        #         go.Scatter(
+        #             x=df["Step"],
+        #             y=df["noise_5_mean"]-df["noise_5_std"],
+        #             marker=dict(color="#444"),
+        #             line=dict(width=0),
+        #             mode="lines",
+        #             fillcolor='rgba(68, 68, 68, 0.3)',
+        #             fill='tonexty',
+        #             showlegend=False
+        #         ),
+        #         go.Scatter(
+        #             name="10% Noise",
+        #             x=df["Step"],
+        #             y=df["noise_10_mean"],
+        #             mode="lines",
+        #             marker=dict(color="purple"),
+        #             showlegend=False
+        #         ),
+        #         go.Scatter(
+        #             x=df["Step"],
+        #             y=df["noise_10_mean"]+df["noise_10_std"],
+        #             mode="lines",
+        #             marker=dict(color="#444"),
+        #             line=dict(width=0),
+        #             showlegend=False
+        #         ),
+        #         go.Scatter(
+        #             x=df["Step"],
+        #             y=df["noise_10_mean"]-df["noise_10_std"],
+        #             marker=dict(color="#444"),
+        #             line=dict(width=0),
+        #             mode="lines",
+        #             fillcolor='rgba(0, 68, 0, 0.3)',
+        #             fill='tonexty',
+        #             showlegend=False
+        #         ),
+        #     ])
+        # fig.update_layout(
+        #     title_text="Sampling From Latent Space",
+        #     hovermode="x",
+        #     xaxis_title="Episodes",
+        #     yaxis_title="Success",
+        #     title_x=0.5,
+        #     showlegend=True,
+        #     font=dict(
+        #         family="Courier New, monospace",
+        #         size=20
+        #     )
+        # )
+        # fig.add_annotation(x=df["Step"].iloc[-1], y=df["mean"].iloc[-1], text=df["mean"].iloc[-1], arrowhead=2, textangle=0, ayref='y', ax=1, ay=90)
+        # # fig.add_annotation(x=df["Step"].iloc[-1], y=df["noise_10_mean"].iloc[-1], text=df["noise_10_mean"].iloc[-1], arrowhead=2, textangle=0, ayref='y', ax=1, ay=35)
+        # fig.update_yaxes(range=[0,100])
+        # fig.show()
